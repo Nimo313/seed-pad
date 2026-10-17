@@ -1,0 +1,64 @@
+{
+  "maus": {
+    "empfindlichkeit": 0.5,
+    "reibung": 8.0,
+    "schwung_ab": 900,
+    "anker": ["maus_rechts", "maus_mitte"],
+    "anker_festhalten": false,
+    "tipp_klick": true,
+    "klick_ruhe": 0.15
+  },
+  "zoom": {
+    "weg_je_raste": 6000
+  },
+  "trigger": {
+    "rechts": "maus_links",
+    "links": "maus_rechts"
+  },
+  "stick_links": {
+    "oben": "w",
+    "unten": "s",
+    "links": "a",
+    "rechts": "d"
+  },
+  "stick_rechts": {
+    "links": "q",
+    "rechts": "e",
+    "oben": "r",
+    "unten": "f"
+  },
+  "stick_rechts_invert": {
+    "hoch_runter": false,
+    "links_rechts": false
+  },
+  "tasten": {
+    "A": "leer",
+    "B": "esc",
+    "X": "x",
+    "Y": "z",
+    "LB": "shift",
+    "RB": "strg",
+    "RPad_Klick": "maus_links",
+    "Menu": "esc",
+    "View": "strg+p",
+    "DPad_Oben": "oben",
+    "DPad_Unten": "unten",
+    "DPad_Links": "links",
+    "DPad_Rechts": "rechts",
+    "L4": "tab",
+    "L5": null,
+    "R4": null,
+    "R5": null,
+    "L3": null,
+    "R3": null,
+    "QAM": null
+  },
+  "radial": [
+    { "name": "Fotomodus", "taste": "strg+p" },
+    { "name": "Etage ↑", "taste": "shift+rad_hoch" },
+    { "name": "Etage ↓", "taste": "shift+rad_runter" },
+    { "name": "Snap Pos (X)", "taste": "x" },
+    { "name": "Snap Rot (Z)", "taste": "z" },
+    { "name": "Esc", "taste": "esc" }
+  ]
+}

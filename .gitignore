@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+SeedPad.exe
+SeedPad_neu.exe
+seedpad_update.bat
+BEDIENUNG.md
+dist/
+build/
+*.spec
