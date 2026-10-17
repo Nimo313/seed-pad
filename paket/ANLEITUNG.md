@@ -40,6 +40,11 @@ ein Klick, sie tauscht sich selbst aus und startet neu.
 | RB | Strg halten (Blöcke löschen, Objekt drehen) |
 | Steuerkreuz | Pfeiltasten |
 | View | Fotomodus (Strg+P) |
+| **QAM (…-Taste)** | **Schreibrad**: Tippen mit den Pads — Blatt mit dem Daumen wählen, Zeichen mit Y/X/B/A (oben/links/rechts/unten), RT Leer, LT Löschen, RB groß, Pad-Klick rechts Enter, QAM wieder zu |
+| R5 halten | **Ebene 2**: zweite Belegung für alle Tasten/Sticks (Reiter Tasten → Ansicht „Ebene 2“; leere Felder = wie Ebene 1) |
+
+**Profile:** oben rechts speichern und wechseln (z. B. „Bauen“ und „Alltag“).
+**Test-Reiter:** zeigt live, was der Controller meldet — gut zum Prüfen.
 
 ## Alles anpassen
 

@@ -14,11 +14,15 @@ sys.path.insert(0, str(HIER))
 
 import pad_eingabe as ei
 import pad_hid
+import pad_schreibrad
 from pad_radial import Radialmenue
+from pad_schreibrad import Schreibrad
 
 TRIGGER_AN, TRIGGER_AUS = 13000, 9000
 STICK_AN, STICK_AUS = 11000, 8000
 RADIAL_RING = 10000
+
+LETZTER = None   # jüngster Controller-Zustand, für die Testansicht der App
 
 
 def basis():
@@ -149,28 +153,34 @@ class Rollrad:
 
 
 class Kreuz:
-    """Stick → 4 gehaltene Tasten mit Hysterese."""
-    def __init__(self, halter, kennung, belegung):
+    """Stick → 4 gehaltene Tasten mit Hysterese. Ebene 2 greift beim Drücken
+    (Belegung dort gesetzt → sie, sonst Ebene 1)."""
+    def __init__(self, halter, kennung, belegung, belegung2=None):
         self.h = halter
         self.k = kennung
-        self.b = {r: ei.kombi_parsen(t) for r, t in belegung.items() if t}
-        self.an = {r: False for r in self.b}
+        self.b1 = {r: ei.kombi_parsen(t) for r, t in belegung.items() if t}
+        self.b2 = {r: ei.kombi_parsen(t)
+                   for r, t in (belegung2 or {}).items() if t}
+        self.an = {r: False for r in set(self.b1) | set(self.b2)}
 
-    def tick(self, x, y):
+    def tick(self, x, y, ebene2=False):
         werte = {"rechts": x, "links": -x, "oben": y, "unten": -y}
-        for r, teile in self.b.items():
+        for r in self.an:
             w = werte[r]
             if not self.an[r] and w > STICK_AN:
-                self.an[r] = True
-                self.h.setzen(f"{self.k}:{r}", teile, True)
+                teile = (self.b2.get(r) if ebene2 else None) or self.b1.get(r)
+                if teile:
+                    self.an[r] = True
+                    self.h.setzen(f"{self.k}:{r}", teile, True)
             elif self.an[r] and w < STICK_AUS:
                 self.an[r] = False
-                self.h.setzen(f"{self.k}:{r}", teile, False)
+                self.h.setzen(f"{self.k}:{r}", [], False)
 
 
 def lauf(stop=None, melden=print):
     """Engine-Schleife. stop: threading.Event zum Beenden von außen,
     melden: bekommt Statuszeilen."""
+    global LETZTER
     cfg = config_laden()
     if steam_laeuft():
         melden("⚠ Steam läuft: Steam Input steuert sonst doppelt."
@@ -189,24 +199,45 @@ def lauf(stop=None, melden=print):
     anker_festhalten = maus_cfg.get("anker_festhalten", False)
     ball = Trackball(maus_cfg)
     rolle = Rollrad(cfg.get("zoom", {}), lambda: sc.haptik_ton(0, 1200, 8, -6))
-    rs_belegung = dict(cfg.get("stick_rechts", {}))
-    inv = cfg.get("stick_rechts_invert", {})
-    if inv.get("hoch_runter"):
-        rs_belegung["oben"], rs_belegung["unten"] = (
-            rs_belegung.get("unten"), rs_belegung.get("oben"))
-    if inv.get("links_rechts"):
-        rs_belegung["links"], rs_belegung["rechts"] = (
-            rs_belegung.get("rechts"), rs_belegung.get("links"))
+    eb2_cfg = cfg.get("ebene2", {})
+
+    def rs_drehen(belegung):
+        b = dict(belegung)
+        inv = cfg.get("stick_rechts_invert", {})
+        if inv.get("hoch_runter"):
+            b["oben"], b["unten"] = b.get("unten"), b.get("oben")
+        if inv.get("links_rechts"):
+            b["links"], b["rechts"] = b.get("rechts"), b.get("links")
+        return b
+
     sticks = [
-        Kreuz(halter, "ls", cfg.get("stick_links", {})),
-        Kreuz(halter, "rs", rs_belegung),
+        Kreuz(halter, "ls", cfg.get("stick_links", {}),
+              eb2_cfg.get("stick_links", {})),
+        Kreuz(halter, "rs", rs_drehen(cfg.get("stick_rechts", {})),
+              rs_drehen(eb2_cfg.get("stick_rechts", {}))),
     ]
-    tasten = {n: ei.kombi_parsen(t)
-              for n, t in cfg.get("tasten", {}).items() if t}
-    trigger_cfg = {"lt": cfg.get("trigger", {}).get("links", "maus_rechts"),
-                   "rt": cfg.get("trigger", {}).get("rechts", "maus_links")}
-    trigger_teile = {k: ei.kombi_parsen(v) for k, v in trigger_cfg.items() if v}
+    tasten1 = {n: ei.kombi_parsen(t)
+               for n, t in cfg.get("tasten", {}).items() if t}
+    tasten2 = {n: ei.kombi_parsen(t)
+               for n, t in eb2_cfg.get("tasten", {}).items() if t}
+
+    def trigger_parsen(quelle):
+        roh = {"lt": quelle.get("links"), "rt": quelle.get("rechts")}
+        return {k: ei.kombi_parsen(v) for k, v in roh.items() if v}
+
+    trigger1 = trigger_parsen(cfg.get("trigger",
+                                      {"links": "maus_rechts",
+                                       "rechts": "maus_links"}))
+    trigger2 = trigger_parsen(eb2_cfg.get("trigger", {}))
     trigger_an = {"lt": False, "rt": False}
+
+    ebene_taste = cfg.get("ebene", {}).get("taste")
+    sr_cfg = cfg.get("schreibrad", {})
+    sr_taste = sr_cfg.get("taste", "QAM") if sr_cfg.get("an", True) else None
+    schreibrad = Schreibrad() if sr_taste else None
+    sr_aktiv = False
+    sr_gezeigt = (None, None, False)
+    reserviert = {ebene_taste, sr_taste} - {None}
 
     tipp_klick = maus_cfg.get("tipp_klick", True)
     tipp_start = None          # (Zeit, x, y)
@@ -250,6 +281,7 @@ def lauf(stop=None, melden=print):
                 letzte_zeit = jetzt
                 continue
             letzte_zeit = jetzt
+            LETZTER = z
 
             steam = z.gedrueckt("Steam")
             if alt is not None and steam:
@@ -263,6 +295,58 @@ def lauf(stop=None, melden=print):
             if pause or alt is None:
                 alt = z
                 continue
+
+            # Schreibrad an/aus und Tipp-Modus
+            if (sr_taste and not steam and z.gedrueckt(sr_taste)
+                    and not alt.gedrueckt(sr_taste)):
+                sr_aktiv = not sr_aktiv
+                halter.alles_loesen()
+                ball.stopp()
+                if sr_aktiv:
+                    schreibrad.zeigen()
+                else:
+                    schreibrad.verbergen()
+                sc.haptik_ton(1, 900 if sr_aktiv else 500, 40, -3)
+            if sr_aktiv:
+                lb = rb_ = None
+                if z.gedrueckt("LPad_Touch") and math.hypot(z.lpx, z.lpy) > 9000:
+                    lb = pad_schreibrad.blatt(
+                        math.degrees(math.atan2(z.lpx, z.lpy)))
+                if z.gedrueckt("RPad_Touch") and math.hypot(z.rpx, z.rpy) > 9000:
+                    rb_ = pad_schreibrad.blatt(
+                        math.degrees(math.atan2(z.rpx, z.rpy)))
+                gross = z.gedrueckt("RB")
+                if (lb, rb_, gross) != sr_gezeigt:
+                    sr_gezeigt = (lb, rb_, gross)
+                    schreibrad.waehlen(lb, rb_, gross)
+                for kn, pos in pad_schreibrad.TASTE_POS.items():
+                    if z.gedrueckt(kn) and not alt.gedrueckt(kn):
+                        gruppe = (pad_schreibrad.RECHTS[rb_]
+                                  if rb_ is not None else
+                                  pad_schreibrad.LINKS[lb]
+                                  if lb is not None else None)
+                        if gruppe:
+                            zeichen = gruppe[pos]
+                            ei.text_tippen(zeichen.upper() if gross else zeichen)
+                            sc.haptik_ton(1, 1400, 10, -6)
+                for name, wert in (("lt", z.lt), ("rt", z.rt)):
+                    if not trigger_an[name] and wert > TRIGGER_AN:
+                        trigger_an[name] = True
+                        if name == "rt":
+                            ei.text_tippen(" ")
+                        else:
+                            ei.aktion(["ruecktaste"], True)
+                            ei.aktion(["ruecktaste"], False)
+                        sc.haptik_ton(1, 1000, 10, -6)
+                    elif trigger_an[name] and wert < TRIGGER_AUS:
+                        trigger_an[name] = False
+                if z.gedrueckt("RPad_Klick") and not alt.gedrueckt("RPad_Klick"):
+                    ei.aktion(["enter"], True)
+                    ei.aktion(["enter"], False)
+                alt = z
+                continue
+
+            ebene2 = bool(ebene_taste) and z.gedrueckt(ebene_taste)
 
             # rechtes Pad: Maus — aber nicht, solange der rechte Stick
             # ausgelenkt ist (Daumenballen streift sonst das Pad)
@@ -323,38 +407,51 @@ def lauf(stop=None, melden=print):
                 ls_aktiv = abs(z.lsx) > STICK_AUS or abs(z.lsy) > STICK_AUS
                 rolle.tick(z.gedrueckt("LPad_Touch") and not ls_aktiv, z.lpy)
 
-            # Trigger → Maustasten
+            # Trigger → Maustasten (Ebene 2 greift beim Drücken)
             for name, wert in (("lt", z.lt), ("rt", z.rt)):
-                if name not in trigger_teile:
-                    continue
                 if not trigger_an[name] and wert > TRIGGER_AN:
                     trigger_an[name] = True
-                    if "maus_links" in trigger_teile[name]:
-                        klick_ruhe = jetzt + klick_ruhe_dauer
-                    halter.setzen(name, trigger_teile[name], True)
+                    teile = ((trigger2.get(name) if ebene2 else None)
+                             or trigger1.get(name))
+                    if teile:
+                        if "maus_links" in teile:
+                            klick_ruhe = jetzt + klick_ruhe_dauer
+                        halter.setzen(name, teile, True)
                 elif trigger_an[name] and wert < TRIGGER_AUS:
                     trigger_an[name] = False
-                    halter.setzen(name, trigger_teile[name], False)
+                    halter.setzen(name, [], False)
 
             # Sticks → Kamera
-            sticks[0].tick(z.lsx, z.lsy)
-            sticks[1].tick(z.rsx, z.rsy)
+            sticks[0].tick(z.lsx, z.lsy, ebene2)
+            sticks[1].tick(z.rsx, z.rsy, ebene2)
 
             # Knöpfe → Tasten (nicht während Steam gehalten ist)
             if not steam:
-                for name, teile in tasten.items():
+                for name in set(tasten1) | set(tasten2):
+                    if name in reserviert:
+                        continue
                     war = alt.gedrueckt(name)
                     ist = z.gedrueckt(name)
-                    if ist != war:
-                        if ist and "maus_links" in teile:
-                            klick_ruhe = jetzt + klick_ruhe_dauer
-                        halter.setzen(name, teile, ist)
+                    if ist == war:
+                        continue
+                    if ist:
+                        teile = ((tasten2.get(name) if ebene2 else None)
+                                 or tasten1.get(name))
+                        if teile:
+                            if "maus_links" in teile:
+                                klick_ruhe = jetzt + klick_ruhe_dauer
+                            halter.setzen(name, teile, True)
+                    else:
+                        halter.setzen(name, [], False)
 
             alt = z
     finally:
+        LETZTER = None
         halter.alles_loesen()
         sc.schliessen()
         radial.beenden()
+        if schreibrad:
+            schreibrad.beenden()
         melden("Beendet, alle Tasten gelöst.")
 
 

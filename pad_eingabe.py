@@ -19,7 +19,7 @@ _MAUS_FLAGS = {  # name: (runter, hoch)
 }
 
 _VK = {
-    "esc": 0x1B, "tab": 0x09, "enter": 0x0D, "leer": 0x20,
+    "esc": 0x1B, "tab": 0x09, "enter": 0x0D, "leer": 0x20, "ruecktaste": 0x08,
     "shift": 0xA0, "strg": 0xA2, "alt": 0xA4,
     "entf": 0x2E, "einfg": 0x2D, "pos1": 0x24, "ende": 0x23,
     "bildauf": 0x21, "bildab": 0x22,
@@ -61,6 +61,15 @@ class _EINGABE(ctypes.Structure):
 
 def _senden(e):
     _user32.SendInput(1, ctypes.byref(e), ctypes.sizeof(_EINGABE))
+
+
+def text_tippen(text):
+    """Beliebige Zeichen (auch Umlaute/Sonderzeichen) als Unicode-Eingabe."""
+    for zeichen in text:
+        for flags in (0x0004, 0x0004 | _T_AUF):   # KEYEVENTF_UNICODE
+            e = _EINGABE(type=_TASTATUR)
+            e.ki = _KEYBDINPUT(0, ord(zeichen), flags, 0, None)
+            _senden(e)
 
 
 def cursor_pos():
