@@ -121,14 +121,16 @@ def _taste_roh(name, runter):
 
 
 def klick_bei(x, y):
-    """Klickt kurz an einer festen Bildschirmstelle und kehrt zurück."""
+    """Klickt kurz an einer festen Bildschirmstelle und kehrt zurück.
+    Die Pausen sind bewusst länger als ein Spiel-Frame (SEED läuft teils
+    mit ~20 FPS), sonst übersieht die Unity-UI den Klick."""
     alt = cursor_pos()
     cursor_setzen(x, y)
-    time.sleep(0.02)
+    time.sleep(0.10)
     maus_taste("maus_links", True)
-    time.sleep(0.02)
+    time.sleep(0.10)
     maus_taste("maus_links", False)
-    time.sleep(0.02)
+    time.sleep(0.08)
     cursor_setzen(*alt)
 
 

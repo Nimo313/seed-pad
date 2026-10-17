@@ -17,7 +17,7 @@ import pad_fenster
 import pad_update
 import seed_pad
 
-VERSION = "1.5.0"
+VERSION = "1.5.1"
 
 KNOEPFE = [
     ("A", "A"), ("B", "B"), ("X", "X"), ("Y", "Y"),
