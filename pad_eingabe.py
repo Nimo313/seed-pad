@@ -1,6 +1,10 @@
 # Maus und Tastatur per SendInput erzeugen (Scancodes, damit Unity sie sieht).
 import ctypes
+import re
+import time
 from ctypes import wintypes
+
+_KLICK_MUSTER = re.compile(r"^klick:(-?\d+),(-?\d+)$")
 
 _user32 = ctypes.windll.user32
 
@@ -114,11 +118,26 @@ def _taste_roh(name, runter):
     _senden(e)
 
 
+def klick_bei(x, y):
+    """Klickt kurz an einer festen Bildschirmstelle und kehrt zurück."""
+    alt = cursor_pos()
+    cursor_setzen(x, y)
+    time.sleep(0.02)
+    maus_taste("maus_links", True)
+    time.sleep(0.02)
+    maus_taste("maus_links", False)
+    time.sleep(0.02)
+    cursor_setzen(*alt)
+
+
 def kombi_parsen(text):
-    """'strg+p' → ['strg', 'p']; prüft die Namen."""
+    """'strg+p' → ['strg', 'p']; prüft die Namen.
+    'klick:x,y' klickt eine feste Bildschirmstelle."""
     teile = [t.strip().lower() for t in text.split("+") if t.strip()]
     for t in teile:
-        if t not in _VK and t not in _MAUS_FLAGS and t not in ("rad_hoch", "rad_runter"):
+        if (t not in _VK and t not in _MAUS_FLAGS
+                and t not in ("rad_hoch", "rad_runter")
+                and not _KLICK_MUSTER.match(t)):
             raise ValueError(f"Unbekannte Taste: {t!r}")
     return teile
 
@@ -127,7 +146,11 @@ def aktion(teile, runter):
     """Tastenkombi oder Maustaste drücken/lösen. rad_* feuert nur beim Drücken."""
     folge = teile if runter else reversed(teile)
     for t in folge:
-        if t in _MAUS_FLAGS:
+        klick = _KLICK_MUSTER.match(t)
+        if klick:
+            if runter:
+                klick_bei(int(klick.group(1)), int(klick.group(2)))
+        elif t in _MAUS_FLAGS:
             maus_taste(t, runter)
         elif t == "rad_hoch":
             if runter:

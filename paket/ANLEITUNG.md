@@ -48,7 +48,10 @@ ein Klick, sie tauscht sich selbst aus und startet neu.
 
 ## Alles anpassen
 
-Am einfachsten im Fenster. In `pad_belegung.json` steht dasselbe:
+Am einfachsten im Fenster. Im Aufnahme-Dialog gibt es auch
+**„Bildschirm-Klick…“**: Die Taste klickt dann eine feste Stelle an (z. B. das
+Unternehmens- oder Society-Symbol) — Cursor springt hin, klickt und kommt
+zurück. In `pad_belegung.json` steht dasselbe (Klick-Stellen als `klick:x,y`):
 
 - **`tasten`** — jede Controller-Taste frei belegen (`null` = nichts).
   Es gehen Namen wie `a`–`z`, `0`–`9`, `f1`–`f12`, `esc`, `tab`, `enter`,

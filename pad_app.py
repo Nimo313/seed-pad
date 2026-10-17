@@ -16,7 +16,7 @@ import pad_eingabe as ei
 import pad_update
 import seed_pad
 
-VERSION = "1.3.1"
+VERSION = "1.4.0"
 
 KNOEPFE = [
     ("A", "A"), ("B", "B"), ("X", "X"), ("Y", "Y"),
@@ -83,6 +83,8 @@ class Aufnahme(tk.Toplevel):
         self.maus_feld.pack(padx=16, pady=8)
         leiste = ttk.Frame(self)
         leiste.pack(pady=(0, 12))
+        ttk.Button(leiste, text="Bildschirm-Klick…",
+                   command=self._position_waehlen).pack(side="left", padx=4)
         ttk.Button(leiste, text="Leeren",
                    command=lambda: self._ende("")).pack(side="left", padx=4)
         ttk.Button(leiste, text="Abbrechen",
@@ -121,6 +123,23 @@ class Aufnahme(tk.Toplevel):
         if mod and mod in self.gehalten:
             # Modifier gedrückt und ohne weitere Taste losgelassen → er selbst
             self._ende(self._kombi(mod))
+
+    def _position_waehlen(self):
+        """Taste soll eine feste Bildschirmstelle klicken: Stelle wählen."""
+        self.withdraw()
+        w = tk.Toplevel(self)
+        w.attributes("-fullscreen", True)
+        w.attributes("-alpha", 0.25)
+        w.configure(bg="black", cursor="crosshair")
+        tk.Label(w, text="Stelle anklicken, die die Taste treffen soll"
+                 " — Esc bricht ab", bg="#10151d", fg="#dde6f2",
+                 font=("Segoe UI", 12), padx=14, pady=8
+                 ).place(relx=0.5, y=30, anchor="n")
+        w.grab_set()
+        w.focus_set()
+        w.bind("<Button-1>", lambda e: (w.destroy(),
+                                        self._ende(f"klick:{e.x_root},{e.y_root}")))
+        w.bind("<Escape>", lambda e: (w.destroy(), self._ende(None)))
 
     def _maus(self, name):
         self._ende(self._kombi(name))
