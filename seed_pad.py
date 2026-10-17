@@ -14,9 +14,9 @@ sys.path.insert(0, str(HIER))
 
 import pad_eingabe as ei
 import pad_hid
-import pad_schreibrad
+import pad_tastatur
 from pad_radial import Radialmenue
-from pad_schreibrad import Schreibrad
+from pad_tastatur import Tastatur
 
 TRIGGER_AN, TRIGGER_AUS = 13000, 9000
 STICK_AN, STICK_AUS = 11000, 8000
@@ -234,9 +234,10 @@ def lauf(stop=None, melden=print):
     ebene_taste = cfg.get("ebene", {}).get("taste")
     sr_cfg = cfg.get("schreibrad", {})
     sr_taste = sr_cfg.get("taste", "QAM") if sr_cfg.get("an", True) else None
-    schreibrad = Schreibrad() if sr_taste else None
+    tastatur = Tastatur() if sr_taste else None
     sr_aktiv = False
     sr_gezeigt = (None, None, False)
+    sr_loeschen_ab = None      # nächster Wiederhol-Zeitpunkt für ⌫ (B halten)
     reserviert = {ebene_taste, sr_taste} - {None}
 
     tipp_klick = maus_cfg.get("tipp_klick", True)
@@ -296,53 +297,68 @@ def lauf(stop=None, melden=print):
                 alt = z
                 continue
 
-            # Schreibrad an/aus und Tipp-Modus
+            # Tastatur an/aus und Tipp-Modus
             if (sr_taste and not steam and z.gedrueckt(sr_taste)
                     and not alt.gedrueckt(sr_taste)):
                 sr_aktiv = not sr_aktiv
                 halter.alles_loesen()
                 ball.stopp()
+                sr_loeschen_ab = None
                 if sr_aktiv:
-                    schreibrad.zeigen()
+                    tastatur.zeigen()
                 else:
-                    schreibrad.verbergen()
+                    tastatur.verbergen()
                 sc.haptik_ton(1, 900 if sr_aktiv else 500, 40, -3)
             if sr_aktiv:
-                lb = rb_ = None
-                if z.gedrueckt("LPad_Touch") and math.hypot(z.lpx, z.lpy) > 9000:
-                    lb = pad_schreibrad.blatt(
-                        math.degrees(math.atan2(z.lpx, z.lpy)))
-                if z.gedrueckt("RPad_Touch") and math.hypot(z.rpx, z.rpy) > 9000:
-                    rb_ = pad_schreibrad.blatt(
-                        math.degrees(math.atan2(z.rpx, z.rpy)))
+                lk = (pad_tastatur.treffer(True, z.lpx, z.lpy)
+                      if z.gedrueckt("LPad_Touch") else None)
+                rk = (pad_tastatur.treffer(False, z.rpx, z.rpy)
+                      if z.gedrueckt("RPad_Touch") else None)
                 gross = z.gedrueckt("RB")
-                if (lb, rb_, gross) != sr_gezeigt:
-                    sr_gezeigt = (lb, rb_, gross)
-                    schreibrad.waehlen(lb, rb_, gross)
-                for kn, pos in pad_schreibrad.TASTE_POS.items():
-                    if z.gedrueckt(kn) and not alt.gedrueckt(kn):
-                        gruppe = (pad_schreibrad.RECHTS[rb_]
-                                  if rb_ is not None else
-                                  pad_schreibrad.LINKS[lb]
-                                  if lb is not None else None)
-                        if gruppe:
-                            zeichen = gruppe[pos]
-                            ei.text_tippen(zeichen.upper() if gross else zeichen)
-                            sc.haptik_ton(1, 1400, 10, -6)
-                for name, wert in (("lt", z.lt), ("rt", z.rt)):
+                if (lk, rk, gross) != sr_gezeigt:
+                    sr_gezeigt = (lk, rk, gross)
+                    tastatur.waehlen(lk, rk, gross)
+
+                def tippen(idx, seite):
+                    if idx is None:
+                        return
+                    zeichen = pad_tastatur.ZEICHEN[idx]
+                    if gross:
+                        zeichen = pad_tastatur.gross_zeichen(zeichen)
+                    ei.text_tippen(zeichen)
+                    sc.haptik_ton(seite, 1400, 10, -6)
+
+                # LT/RT tippen die markierte Taste ihrer Hälfte
+                for name, wert, idx, seite in (("lt", z.lt, lk, 0),
+                                               ("rt", z.rt, rk, 1)):
                     if not trigger_an[name] and wert > TRIGGER_AN:
                         trigger_an[name] = True
-                        if name == "rt":
-                            ei.text_tippen(" ")
-                        else:
-                            ei.aktion(["ruecktaste"], True)
-                            ei.aktion(["ruecktaste"], False)
-                        sc.haptik_ton(1, 1000, 10, -6)
+                        tippen(idx, seite)
                     elif trigger_an[name] and wert < TRIGGER_AUS:
                         trigger_an[name] = False
+                if z.gedrueckt("LPad_Klick") and not alt.gedrueckt("LPad_Klick"):
+                    tippen(lk, 0)
                 if z.gedrueckt("RPad_Klick") and not alt.gedrueckt("RPad_Klick"):
+                    tippen(rk, 1)
+                if z.gedrueckt("A") and not alt.gedrueckt("A"):
+                    ei.text_tippen(" ")
+                    sc.haptik_ton(1, 1000, 10, -6)
+                if z.gedrueckt("Y") and not alt.gedrueckt("Y"):
                     ei.aktion(["enter"], True)
                     ei.aktion(["enter"], False)
+                # B löscht; halten wiederholt
+                if z.gedrueckt("B"):
+                    if not alt.gedrueckt("B"):
+                        ei.aktion(["ruecktaste"], True)
+                        ei.aktion(["ruecktaste"], False)
+                        sc.haptik_ton(1, 800, 10, -6)
+                        sr_loeschen_ab = jetzt + 0.45
+                    elif sr_loeschen_ab and jetzt >= sr_loeschen_ab:
+                        ei.aktion(["ruecktaste"], True)
+                        ei.aktion(["ruecktaste"], False)
+                        sr_loeschen_ab = jetzt + 0.08
+                else:
+                    sr_loeschen_ab = None
                 alt = z
                 continue
 
@@ -450,8 +466,8 @@ def lauf(stop=None, melden=print):
         halter.alles_loesen()
         sc.schliessen()
         radial.beenden()
-        if schreibrad:
-            schreibrad.beenden()
+        if tastatur:
+            tastatur.beenden()
         melden("Beendet, alle Tasten gelöst.")
 
 

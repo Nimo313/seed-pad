@@ -16,7 +16,7 @@ import pad_eingabe as ei
 import pad_update
 import seed_pad
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 KNOEPFE = [
     ("A", "A"), ("B", "B"), ("X", "X"), ("Y", "Y"),
@@ -317,11 +317,11 @@ class App:
                 ("Cursor beim Kameradrehen/-ziehen festnageln", self.v_festhalten),
                 ("Rechten Stick hoch/runter invertieren", self.v_inv_y),
                 ("Rechten Stick links/rechts invertieren", self.v_inv_x),
-                ("Schreibrad an (Tippen mit den Pads)", self.v_sr_an))):
+                ("Overlay-Tastatur an (Tippen mit den Pads)", self.v_sr_an))):
             ttk.Checkbutton(rahmen, text=text, variable=var).grid(
                 row=z + i, column=0, columnspan=2, sticky="w",
                 pady=(6 if i == 0 else 0))
-        ttk.Label(rahmen, text="Schreibrad-Taste:").grid(
+        ttk.Label(rahmen, text="Tastatur-Taste:").grid(
             row=z + 5, column=0, sticky="w", pady=4)
         ttk.Combobox(rahmen, textvariable=self.v_sr_taste,
                      values=[n for n, _ in KNOEPFE], state="readonly",
