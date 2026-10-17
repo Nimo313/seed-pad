@@ -18,6 +18,9 @@ EXE; die Datei kann man auch direkt bearbeiten.
 
 **Steam + X** = Pause (zum Tippen) · **Steam + B** = Steuerung stoppen.
 
+Gibt es eine neue Version, zeigt die App oben rechts einen **⟳ Update**-Knopf —
+ein Klick, sie tauscht sich selbst aus und startet neu.
+
 ## Belegung
 
 | Eingabe | Wirkung |
