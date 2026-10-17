@@ -4,6 +4,8 @@ import re
 import time
 from ctypes import wintypes
 
+import pad_fenster
+
 _KLICK_MUSTER = re.compile(r"^klick:(-?\d+),(-?\d+)$")
 
 _user32 = ctypes.windll.user32
@@ -135,7 +137,10 @@ def kombi_parsen(text):
     'klick:x,y' klickt eine feste Bildschirmstelle."""
     teile = [t.strip().lower() for t in text.split("+") if t.strip()]
     for t in teile:
-        if (t not in _VK and t not in _MAUS_FLAGS
+        if t.startswith("fenster:"):
+            if t[8:] not in pad_fenster.POSITIONEN:
+                raise ValueError(f"Unbekanntes Fenster: {t[8:]!r}")
+        elif (t not in _VK and t not in _MAUS_FLAGS
                 and t not in ("rad_hoch", "rad_runter")
                 and not _KLICK_MUSTER.match(t)):
             raise ValueError(f"Unbekannte Taste: {t!r}")
@@ -147,7 +152,10 @@ def aktion(teile, runter):
     folge = teile if runter else reversed(teile)
     for t in folge:
         klick = _KLICK_MUSTER.match(t)
-        if klick:
+        if t.startswith("fenster:"):
+            if runter:
+                klick_bei(*pad_fenster.POSITIONEN[t[8:]])
+        elif klick:
             if runter:
                 klick_bei(int(klick.group(1)), int(klick.group(2)))
         elif t in _MAUS_FLAGS:

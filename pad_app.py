@@ -13,10 +13,11 @@ HIER = Path(__file__).parent
 sys.path.insert(0, str(HIER))
 
 import pad_eingabe as ei
+import pad_fenster
 import pad_update
 import seed_pad
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 
 KNOEPFE = [
     ("A", "A"), ("B", "B"), ("X", "X"), ("Y", "Y"),
@@ -81,6 +82,12 @@ class Aufnahme(tk.Toplevel):
             self, text="…oder hier klicken / rollen\nfür Maustaste und Mausrad",
             relief="groove", padx=14, pady=10)
         self.maus_feld.pack(padx=16, pady=8)
+        self.v_fenster = tk.StringVar(value="SEED-Fenster öffnen…")
+        fenster_feld = ttk.Combobox(
+            self, textvariable=self.v_fenster, state="readonly", width=26,
+            values=[n for n, _, _ in pad_fenster.FENSTER])
+        fenster_feld.pack(padx=16, pady=(0, 6))
+        fenster_feld.bind("<<ComboboxSelected>>", self._fenster_gewaehlt)
         leiste = ttk.Frame(self)
         leiste.pack(pady=(0, 12))
         ttk.Button(leiste, text="Bildschirm-Klick…",
@@ -123,6 +130,9 @@ class Aufnahme(tk.Toplevel):
         if mod and mod in self.gehalten:
             # Modifier gedrückt und ohne weitere Taste losgelassen → er selbst
             self._ende(self._kombi(mod))
+
+    def _fenster_gewaehlt(self, _=None):
+        self._ende(f"fenster:{pad_fenster.kennung(self.v_fenster.get())}")
 
     def _position_waehlen(self):
         """Taste soll eine feste Bildschirmstelle klicken: Stelle wählen."""
