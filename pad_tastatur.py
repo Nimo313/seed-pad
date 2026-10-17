@@ -21,11 +21,18 @@ ZEICHEN = [t[2] for t in TASTEN]
 _FELD_H = len(REIHEN) * KH + (len(REIHEN) - 1) * LUECKE
 
 
+# Nur die inneren ~65 % des Pads decken die ganze Hälfte ab — die Ecken
+# erreicht man so, ohne an den Pad-Rand zu müssen.
+_REICHWEITE = 0.65
+
+
 def treffer(links, x, y):
     """Pad-Position (roh ±32767) → Tasten-Index in der jeweiligen Hälfte."""
+    nx = max(-1.0, min(1.0, x / (32767 * _REICHWEITE)))
+    ny = max(-1.0, min(1.0, y / (32767 * _REICHWEITE)))
     halb = (BREITE - 2 * RAND) / 2
-    px = RAND + (0 if links else halb) + (x / 32767 + 1) / 2 * halb
-    py = RAND + (1 - (y / 32767 + 1) / 2) * _FELD_H
+    px = RAND + (0 if links else halb) + (nx + 1) / 2 * halb
+    py = RAND + (1 - (ny + 1) / 2) * _FELD_H
     beste, abstand = None, None
     for i, (tx, ty, _) in enumerate(TASTEN):
         if links != (tx < BREITE / 2):

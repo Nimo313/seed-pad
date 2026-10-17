@@ -16,7 +16,7 @@ import pad_eingabe as ei
 import pad_update
 import seed_pad
 
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 
 KNOEPFE = [
     ("A", "A"), ("B", "B"), ("X", "X"), ("Y", "Y"),
